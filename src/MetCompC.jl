@@ -1,5 +1,7 @@
 module MetCompC
 
-# Write your package code here.
+export Methods
+
+include("methods.jl")
 
 end
