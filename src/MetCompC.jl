@@ -1,7 +1,8 @@
 module MetCompC
 
-export Methods
+export Methods, Molecular
 
 include("methods.jl")
+include("molecular/molecular.jl")
 
 end
