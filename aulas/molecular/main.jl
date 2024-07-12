@@ -6,8 +6,8 @@ dynamic_cfg = Molecular.Configs.DynamicCfg(
 
 d = dynamic_cfg.ro
 space_cfg = Molecular.Configs.SpaceCfg(
-    length=d*11,
-    height=d*11
+    length=d*4,
+    height=d*4
     # length=4,
     # height=4
 )
@@ -17,13 +17,13 @@ int_cfg = Molecular.Configs.IntCfg(
 )
 
 graph_cfg = Molecular.Graph.GraphCfg(
-    num_steps_per_frame=100,
+    num_steps_per_frame=10,
     fps=30,
     circle_rel=40,
 )
 
 temp = 1
-num_p = 100
+num_p = 10
 
 tf = 1.
 
