@@ -41,14 +41,14 @@ println("Energia K: ", Molecular.Quantities.kinetic_energy(system.state))
 println("Energia U: ", Molecular.Quantities.potencial_energy(system))
 println("Energia E: ", Molecular.Quantities.energy(system))
 
-# Molecular.Graph.animate(system, graph_cfg)
+Molecular.Graph.animate(system, graph_cfg)
 
-function run(tf, system)
-    time = 0
-    while time < tf
-        Molecular.step!(system)
-        time += system.int_cfg.dt
-    end
-end
-run(tf, system)
-println(system.num_p)
+# function run(tf, system)
+#     time = 0
+#     while time < tf
+#         Molecular.step!(system)
+#         time += system.int_cfg.dt
+#     end
+# end
+# run(tf, system)
+# println(system.num_p)

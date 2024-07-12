@@ -115,8 +115,8 @@ function step!(system::System{T}) where {T}
     n = length(system.state.x)
 
     info = @timed calc_forces!(system)
-    println("Force time: ", info.time)
-    println("Force mem: ", info.bytes)
+    # println("Force time: ", info.time)
+    # println("Force mem: ", info.bytes)
     for i in 1:n
         state.x[i] += dt * state.vx[i] + 0.5*dt^2 * system.forces[1, i] 
         state.y[i] += dt * state.vy[i] + 0.5*dt^2 * system.forces[2, i]

@@ -71,7 +71,7 @@ function animate(system::System{T}, cfg::GraphCfg) where {T}
         
         energy = Quantities.energy(system)
         temp = Quantities.temperature(system)
-        ax.title = @sprintf("E=%.3f | T=%.3f | t=%.3f",energy-init_energy,temp, time)
+        ax.title = @sprintf("(E - E_i)=%.3f | T=%.3f | t=%.3f",energy-init_energy,temp, time)
 
         update_circles!(circle_points, circle_base, system.state)
         notify(circle_points_obs)
