@@ -11,7 +11,6 @@ using ..Configs
     vy::Vector{T}
 end
 
-
 struct Chuncks{T}
     num_cols::Int
     num_rows::Int
@@ -21,7 +20,9 @@ struct Chuncks{T}
 
     state::State{T}
     
+    # neighbors::Vector{Matrix{Int}}
     neighbors::Array{Int, 4}
+    
     chunk_particles::Array{Int, 3}
     num_particles_in_chunck::Array{Int, 2}
 end
@@ -39,7 +40,6 @@ function Chuncks(num_cols, num_rows, space_cfg, state, particle_r)
             neighbors[i, j, :, 3] = [i+1, j+1]
             neighbors[i, j, :, 4] = [i, j+1]
         end
-        length
     end
 
     chunck_length = space_cfg.length / num_cols
@@ -47,7 +47,7 @@ function Chuncks(num_cols, num_rows, space_cfg, state, particle_r)
 
     area = chunck_height * chunck_length
     nc = trunc(Int, ceil(area / (π * particle_r^2)))
-    chunck_particles = Array{Int}(undef, num_rows, num_cols, nc)
+    chunck_particles = Array{Int}(undef, num_rows, num_cols, trunc(Int, ceil(4*nc)))
     num_particles_in_chunck = zeros(Int, num_rows, num_cols)
 
     Chuncks(num_cols, num_rows, chunck_length, chunck_height, space_cfg, state, neighbors, chunck_particles, num_particles_in_chunck)
@@ -91,6 +91,13 @@ function update_chunck!(chuncks)
         row_id = trunc(Int, div(-state.y[i] + chuncks.space_cfg.height, chuncks.chunck_height)) + 1
         col_id = trunc(Int, div(state.x[i], chuncks.chunck_length)) + 1
         
+        # println(state.x[i], "|", state.y[i])
+        # println(row_id, "| ", col_id)
+        # println("========")
+
+        row_id -= row_id == chuncks.num_rows ? 1 : 0
+        col_id -= col_id == chuncks.num_cols ? 1 : 0
+
         p_i = chuncks.num_particles_in_chunck[row_id, col_id] + 1
         chuncks.chunk_particles[row_id, col_id, p_i] = i 
         chuncks.num_particles_in_chunck[row_id, col_id] += 1
@@ -146,26 +153,7 @@ function calc_interaction!(system, i, j)
 end
 
 function calc_forces!(system::System{T}) where {T}
-    diffs = system.diffs
-    dists = system.dists
-    forces = system.forces
-    f_pars = system.dynamic_cfg
-    n = system.num_p
-
-    forces .= 0.0
-
-    calc_diff_and_dist!(system)
-    # n = length(state.x)
-    # for j in 1:n
-    #     for i in (j+1):n
-    #         diffs[1, i, j] = state.x[i] - state.x[j]
-    #         diffs[2, i, j] = state.y[i] - state.y[j]
-    #         diffs[1, j, i] = state.x[j] - state.x[i]
-    #         diffs[2, j, i] = state.y[j] - state.y[i]
-    #     end
-    # end
-
-    # info.energy = calc_energy(pos, diffs, f_pars)
+    system.forces .= 0
     
     chuncks = system.chuncks
     for col in 1:chuncks.num_cols
@@ -177,6 +165,7 @@ function calc_forces!(system::System{T}) where {T}
             for i in 1:np
                 p1_id = chunck[i]
                 for j in (i+1):np
+                    # println("$(i), $(j), $(np)")
                     calc_interaction!(system, p1_id, chunck[j])
                 end
                 
@@ -187,43 +176,23 @@ function calc_forces!(system::System{T}) where {T}
                     end
                     nei_col = neighbors[2, nei_id]
                     
-                    np = chuncks.num_particles_in_chunck[nei_row, nei_col]
-                    nei_chunck = @view chuncks.chunk_particles[nei_row, nei_col, 1:np]
+                    nei_np = chuncks.num_particles_in_chunck[nei_row, nei_col]
+                    nei_chunck = @view chuncks.chunk_particles[nei_row, nei_col, 1:nei_np]
                     
-                    for j in 1:np
+                    for j in 1:nei_np
                         calc_interaction!(system, p1_id, nei_chunck[j])
                     end
                 end
             end
         end
     end
+end
 
-    for j in 1:n
-        for i in (j+1):n
-            # dist = (diffs[1, i, j]^2 + diffs[2, i, j]^2)^.5        
-            # system.dists[i, j] = dist
-            # system.dists[j, i] = dist
-            
-            dist = dists[i, j]
-            if dist == 0
-                println("Erro: r nulo!")
-            end
-
-            # fo = 2 * nf / dist^(2*nf + 2) - b*nf/dist^(nf)
-            
-            fo = 0
-            if dist < f_pars.ra
-                fo = -f_pars.ko * (dist - f_pars.ro)
-            end
-
-            fx = fo * diffs[1, i, j] / dist
-            fy = fo * diffs[2, i, j] / dist
-
-            forces[1, i] +=  fx
-            forces[2, i] +=  fy
-            
-            forces[1, j] -= fx
-            forces[2, j] -= fy
+function calc_forces_normal!(system::System) 
+    system.forces .= 0
+    for i in 1:system.num_p
+        for j in (i+1):system.num_p
+            calc_interaction!(system, i, j)
         end
     end
 end
@@ -235,7 +204,11 @@ function step!(system::System{T}) where {T}
     n = length(system.state.x)
 
     update_chunck!(system.chuncks)
+    
+    calc_diff_and_dist!(system)
+    # calc_forces_normal!(system)
     calc_forces!(system)
+    
     # info = @timed calc_forces!(system)
     # println("Force time: ", info.time)
     # println("Force mem: ", info.bytes)
@@ -245,7 +218,10 @@ function step!(system::System{T}) where {T}
     end
     
     forces_last = copy(system.forces)
+    calc_diff_and_dist!(system)
+    # calc_forces_normal!(system)
     calc_forces!(system)
+    
     forces_mean = 1/2 .* (forces_last .+ system.forces)
     for i in 1:n
         state.vx[i] += dt * forces_mean[1, i]

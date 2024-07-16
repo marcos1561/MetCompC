@@ -1,6 +1,6 @@
 module Graph
 
-using GLMakie, Printf
+using GLMakie, Printf, DataStructures
 using ..Integration: System, State, step!, calc_diff_and_dist!
 using ..Quantities
 
@@ -41,7 +41,7 @@ function animate(system::System{T}, cfg::GraphCfg) where {T}
     pos_obs = [x_obs, y_obs]
     
     fig, ax = scatter(pos_obs...)
-    ax.aspect = 1
+    # ax.aspect = 1
     
     # Bordas
     l, h = system.space_cfg.length, system.space_cfg.height
@@ -61,17 +61,21 @@ function animate(system::System{T}, cfg::GraphCfg) where {T}
     calc_diff_and_dist!(system)
     init_energy = Quantities.energy(system)
 
+    exec_times = CircularBuffer{Float64}(50)
+
     display(fig)
     time = 0.0
     while events(fig).window_open[] 
         for _ in 1:cfg.num_steps_per_frame
-            step!(system)
+            info = @timed step!(system)
+            push!(exec_times, info.time)
             time += system.int_cfg.dt
         end
         
         energy = Quantities.energy(system)
         temp = Quantities.temperature(system)
-        ax.title = @sprintf("(E - E_i)=%.3f | T=%.3f | t=%.3f",energy-init_energy,temp, time)
+        mean_time = sum(exec_times) / length(exec_times) * 1000
+        ax.title = @sprintf("(E - E_i)=%.3f | T=%.3f | t=%.3f | Δt=%.3f ms",energy-init_energy,temp, time, mean_time)
 
         update_circles!(circle_points, circle_base, system.state)
         notify(circle_points_obs)
